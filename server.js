@@ -5,12 +5,13 @@ app.use(cors());
 app.use(express.json());
 
 let dustbins = {};
-let commands = {};   // command queue
+let commands = {};   // command queue for remote control
 
-// NodeMCU se data receive
+// 1. NodeMCU sends data here
 app.post('/api/update', (req, res) => {
     const { id, fill, moisture, wet, lat, lng, location } = req.body;
     if (!id) return res.status(400).json({ error: 'Bin ID required' });
+
     dustbins[id] = {
         id,
         location: location || `Bin ${id}`,
@@ -26,12 +27,12 @@ app.post('/api/update', (req, res) => {
     res.json({ success: true });
 });
 
-// Dashboard ke liye sab bins
+// 2. Dashboard fetches all bins
 app.get('/api/bins', (req, res) => {
     res.json(Object.values(dustbins));
 });
 
-// Dashboard se control command (queue)
+// 3. Dashboard sends control command (queue)
 app.post('/api/control', (req, res) => {
     const { id, command } = req.body;
     if (!id || !command) return res.status(400).json({ error: 'id and command required' });
@@ -40,15 +41,20 @@ app.post('/api/control', (req, res) => {
     res.json({ success: true });
 });
 
-// NodeMCU command check kare
+// 4. NodeMCU polls for command
 app.get('/api/command', (req, res) => {
     const binId = req.query.bin;
     if (!binId) return res.status(400).json({ error: 'bin parameter required' });
     const cmd = commands[binId] || null;
     if (cmd) {
-        delete commands[binId];
+        delete commands[binId];   // clear after serving
     }
     res.json({ command: cmd });
+});
+
+// Root test
+app.get('/', (req, res) => {
+    res.send('Smart Dustbin Server Running');
 });
 
 const PORT = process.env.PORT || 3000;
